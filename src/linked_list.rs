@@ -82,6 +82,7 @@ impl<T: std::fmt::Debug> LinkedList<T> {
                         tmp
                     } {
                         if current_index == index {
+                            // insert between existing nodes
                             let new_node = Rc::new(RefCell::new(Node {
                                 value,
                                 next: Some(next_node),
@@ -96,6 +97,7 @@ impl<T: std::fmt::Debug> LinkedList<T> {
 
                     let list_size = current_index ;
                     if index == list_size {
+                        // insert to tail (append)
                         let new_node = Rc::new(RefCell::new(Node {
                             value,
                             next: None,
@@ -257,12 +259,38 @@ mod tests {
     }
 
     #[test]
+    fn insert_to_tail_big() {
+        let mut list = LinkedList::new();
+        list.prepend(3);
+        list.prepend(2);
+        list.prepend(1);
+        list.prepend(0);
+
+        assert_eq!(format!("{}", list), "0 -> 1 -> 2 -> 3 -> None");
+        list.insert(4, 9).unwrap();
+        assert_eq!(format!("{}", list), "0 -> 1 -> 2 -> 3 -> 9 -> None");
+    }
+
+    #[test]
     fn insert_to_bigger_index_than_list_size() {
         let mut list = LinkedList::new();
         list.prepend(0);
 
         assert_eq!(format!("{}", list), "0 -> None");
         let result = list.insert(2, 9);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn insert_to_bigger_index_than_list_size_big() {
+        let mut list = LinkedList::new();
+        list.prepend(3);
+        list.prepend(2);
+        list.prepend(1);
+        list.prepend(0);
+
+        assert_eq!(format!("{}", list), "0 -> 1 -> 2 -> 3 -> None");
+        let result = list.insert(5, 9);
         assert!(result.is_err());
     }
 }
