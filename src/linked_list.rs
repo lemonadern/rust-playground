@@ -1,4 +1,5 @@
 use std::{cell::RefCell, fmt::Display, rc::Rc};
+use thiserror::Error;
 
 #[derive(Debug)]
 struct Node<T> {
@@ -8,7 +9,15 @@ struct Node<T> {
 
 #[derive(Debug)]
 pub struct LinkedList<T> {
+    // 参照を辿ってハンドリングするトレーニングをしたいので、headのみを保持する
+    // tail, length などは持たない
     head: Option<Rc<RefCell<Node<T>>>>,
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum InsertionError {
+    #[error("Index is Too Big. Size of List is {size}, but you specified index {index}.")]
+    TooBigIndex { size: usize, index: usize },
 }
 
 impl<T: std::fmt::Debug> LinkedList<T> {
@@ -43,6 +52,68 @@ impl<T: std::fmt::Debug> LinkedList<T> {
             }
         }
     }
+
+    pub fn insert(&mut self, index: usize, value: T) -> Result<(), InsertionError> {
+        match self.head.clone() {
+            None => {
+                if index > 0 {
+                    return Err(InsertionError::TooBigIndex { size: 0, index });
+                }
+                let new_node = Rc::new(RefCell::new(Node { value, next: None }));
+                self.head = Some(new_node);
+                Ok(())
+            }
+            Some(head) => {
+                if index == 0 {
+                    // replace head with new element
+                    let next = head;
+
+                    let new_node = Rc::new(RefCell::new(Node {
+                        value,
+                        next: Some(next),
+                    }));
+                    self.head = Some(new_node);
+                } else {
+                    let mut current_node = head;
+                    let mut current_index = 1;
+
+                    while let Some(next_node) = {
+                        let tmp = current_node.borrow().next.clone();
+                        tmp
+                    } {
+                        if current_index == index {
+                            let new_node = Rc::new(RefCell::new(Node {
+                                value,
+                                next: Some(next_node),
+                            }));
+                            current_node.borrow_mut().next = Some(new_node);
+                            return Ok(());
+                        }
+
+                        current_node = next_node;
+                        current_index += 1;
+                    }
+
+                    let list_size = current_index ;
+                    if index == list_size {
+                        let new_node = Rc::new(RefCell::new(Node {
+                            value,
+                            next: None,
+                        }));
+                        current_node.borrow_mut().next = Some(new_node);
+                        return Ok(());
+                    } else if index > list_size {
+                        return Err(InsertionError::TooBigIndex { size: list_size, index })
+                    }
+                }
+                Ok(())
+            }
+        }
+    }
+
+    pub fn delete(&mut self, _index: usize) -> Result<(), &'static str> {
+        todo!("implement delete");
+    }
 }
 
 impl<T: std::fmt::Debug> Display for LinkedList<T> {
@@ -61,6 +132,7 @@ impl<T: std::fmt::Debug> Display for LinkedList<T> {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
@@ -125,5 +197,72 @@ mod tests {
         list.append(3);
         list.prepend(4);
         assert_eq!(format!("{}", list), "4 -> 2 -> 1 -> 3 -> None");
+    }
+
+    #[test]
+    fn list_is_empty_and_insert_to_index_zero() {
+        let mut list = LinkedList::new();
+        list.insert(0, 1).unwrap();
+        assert_eq!(format!("{}", list), "1 -> None");
+    }
+
+    #[test]
+    fn try_insert_by_nonzero_index_to_empty_list() {
+        let mut list = LinkedList::new();
+        let result = list.insert(1, 1);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn insert_to_index_zero() {
+        let mut list = LinkedList::new();
+        list.prepend(1);
+        list.prepend(0);
+        list.insert(0, 9).unwrap();
+        assert_eq!(format!("{}", list), "9 -> 0 -> 1 -> None");
+    }
+
+    #[test]
+    fn insert_to_between_nodes_pattern_1() {
+        let mut list = LinkedList::new();
+        list.prepend(2);
+        list.prepend(1);
+        list.prepend(0);
+
+        assert_eq!(format!("{}", list), "0 -> 1 -> 2 -> None");
+        list.insert(1, 9).unwrap();
+        assert_eq!(format!("{}", list), "0 -> 9 -> 1 -> 2 -> None");
+    }
+
+    #[test]
+    fn insert_to_between_nodes_pattern_2() {
+        let mut list = LinkedList::new();
+        list.prepend(2);
+        list.prepend(1);
+        list.prepend(0);
+
+        assert_eq!(format!("{}", list), "0 -> 1 -> 2 -> None");
+        list.insert(2, 9).unwrap();
+        assert_eq!(format!("{}", list), "0 -> 1 -> 9 -> 2 -> None");
+    }
+
+    #[test]
+    fn insert_to_tail() {
+        let mut list = LinkedList::new();
+        list.prepend(0);
+
+        assert_eq!(format!("{}", list), "0 -> None");
+        list.insert(1, 9).unwrap();
+        assert_eq!(format!("{}", list), "0 -> 9 -> None");
+    }
+
+    #[test]
+    fn insert_to_bigger_index_than_list_size() {
+        let mut list = LinkedList::new();
+        list.prepend(0);
+
+        assert_eq!(format!("{}", list), "0 -> None");
+        let result = list.insert(2, 9);
+        assert!(result.is_err());
     }
 }
