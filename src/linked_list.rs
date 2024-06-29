@@ -40,6 +40,7 @@ impl<T: std::fmt::Debug> Display for LinkedList<T> {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
