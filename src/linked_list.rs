@@ -25,6 +25,7 @@ impl<T: std::fmt::Debug> LinkedList<T> {
         LinkedList { head: None }
     }
 
+    // 先頭に値を追加
     pub fn prepend(&mut self, value: T) {
         let new_node = Rc::new(RefCell::new(Node {
             value,
@@ -34,6 +35,7 @@ impl<T: std::fmt::Debug> LinkedList<T> {
         self.head = Some(new_node);
     }
 
+    // 末尾に値を追加
     pub fn append(&mut self, value: T) {
         let new_node = Rc::new(RefCell::new(Node { value, next: None }));
         match self.head.clone() {
@@ -49,6 +51,20 @@ impl<T: std::fmt::Debug> LinkedList<T> {
                     current = next_node;
                 }
                 current.borrow_mut().next = Some(new_node);
+            }
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        match self.head.take() {
+            None => None,
+            Some(old_head) => {
+                self.head = old_head.borrow().next.clone();
+
+                match Rc::try_unwrap(old_head) {
+                    Ok(v) => Some(v.into_inner().value),
+                    Err(_) => unreachable!(),
+                }
             }
         }
     }
@@ -95,17 +111,17 @@ impl<T: std::fmt::Debug> LinkedList<T> {
                         current_index += 1;
                     }
 
-                    let list_size = current_index ;
+                    let list_size = current_index;
                     if index == list_size {
                         // insert to tail (append)
-                        let new_node = Rc::new(RefCell::new(Node {
-                            value,
-                            next: None,
-                        }));
+                        let new_node = Rc::new(RefCell::new(Node { value, next: None }));
                         current_node.borrow_mut().next = Some(new_node);
                         return Ok(());
                     } else if index > list_size {
-                        return Err(InsertionError::TooBigIndex { size: list_size, index })
+                        return Err(InsertionError::TooBigIndex {
+                            size: list_size,
+                            index,
+                        });
                     }
                 }
                 Ok(())
@@ -199,6 +215,19 @@ mod tests {
         list.append(3);
         list.prepend(4);
         assert_eq!(format!("{}", list), "4 -> 2 -> 1 -> 3 -> None");
+    }
+
+    #[test]
+    fn pop() {
+        let mut list:LinkedList<i32> = LinkedList::new();
+        list.prepend(1);
+        list.prepend(2);
+        list.prepend(3);
+
+        assert_eq!(list.pop(), Some(3));
+        assert_eq!(list.pop(), Some(2));
+        assert_eq!(list.pop(), Some(1));
+        assert_eq!(list.pop(), None);
     }
 
     #[test]
